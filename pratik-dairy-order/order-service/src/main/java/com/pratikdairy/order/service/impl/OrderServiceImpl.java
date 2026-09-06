@@ -83,11 +83,17 @@ public class OrderServiceImpl implements OrderService {
             // sale's ledger entry won't carry a reference id. Acceptable trade-off: the
             // alternative (create the order first, then decrement) risks leaving a saved order
             // with items that can't actually be fulfilled.
-            ResponseEntity<Boolean> response = safeDecrementStock(item.getProductId(), item.getQuantity());
+            //
+            // Uses item.getStockToConsume(), NOT item.getQuantity() - quantity is a package
+            // count (e.g. "3" packs of 250g), while Product.stockQuantity is denominated in the
+            // product's own stockUnit (e.g. kg). Passing the raw package count here would
+            // decrement stock by the wrong amount (and by the wrong unit entirely) any time the
+            // selected weight differs from the product's base stockUnit.
+            ResponseEntity<Boolean> response = safeDecrementStock(item.getProductId(), item.getStockToConsume());
             boolean success = response.getBody() != null && response.getBody();
             if (!success) {
                 for (CartItemDto done : decrementedSoFar) {
-                    productController.restoreStock(done.getProductId(), done.getQuantity(), null);
+                    productController.restoreStock(done.getProductId(), done.getStockToConsume(), null);
                 }
                 throw new RuntimeException("Insufficient stock for product: " + item.getProductId());
             }
@@ -128,8 +134,9 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItems> orderItems = cartItems.stream()
                 .map(item -> new OrderItems(
                         item.getProductId(),
-                        item.getQuantity(),
+                        BigDecimal.valueOf(item.getQuantity()),
                         item.getPricePerUnit(),
+                        item.getWeight(),
                         order
                 ))
                 .toList();
@@ -200,7 +207,8 @@ public class OrderServiceImpl implements OrderService {
                         item.getProductId(),
                         item.getQuantity(),
                         item.getPrice(),
-                        item.getPrice().multiply(item.getQuantity())
+                        item.getPrice().multiply(item.getQuantity()),
+                        item.getWeight()
                 ))
                 .toList();
 
@@ -256,7 +264,8 @@ public class OrderServiceImpl implements OrderService {
                 primaryImageId,
                 item.getQuantity(),
                 item.getPrice(),
-                item.getPrice().multiply(item.getQuantity())
+                item.getPrice().multiply(item.getQuantity()),
+                item.getWeight()
         );
     }
 

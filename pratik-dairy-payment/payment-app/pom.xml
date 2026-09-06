@@ -37,7 +37,7 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
-                    <mainClass>com.pratikdairy.payment.PratikDairyPaymentApplication</mainClass>
+                    <mainClass>com.pratikdairy.payment.PaymentServiceApplication</mainClass>
                 </configuration>
             </plugin>
         </plugins>

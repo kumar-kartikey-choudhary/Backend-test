@@ -1,11 +1,11 @@
 package com.pratikdairy.order.model;
 
+import com.pratikdairy.order.enums.OrderStatus;
 import com.pratikdairy.parent.base.entity.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import com.pratikdairy.user.model.User;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
