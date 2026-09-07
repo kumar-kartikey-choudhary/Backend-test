@@ -49,4 +49,11 @@ public interface PaymentController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping(path = "admin/all")
     ResponseEntity<List<PaymentTransactionDto>> findAll();
+
+    // COD has no gateway step, so nothing ever moves it out of PENDING automatically - an
+    // admin has to confirm cash was actually collected at delivery. Only valid for COD
+    // transactions currently in PENDING; see PaymentServiceImpl.markCodCollected().
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PostMapping(path = "admin/{id}/collect")
+    ResponseEntity<PaymentTransactionDto> markCodCollected(@PathVariable(name = "id") String id);
 }

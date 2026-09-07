@@ -64,4 +64,9 @@ public class PaymentControllerImpl implements PaymentController {
     public ResponseEntity<List<PaymentTransactionDto>> findAll() {
         return ResponseEntity.ok(paymentService.findAll());
     }
+
+    @Override
+    public ResponseEntity<PaymentTransactionDto> markCodCollected(String id) {
+        return ResponseEntity.ok(paymentService.markCodCollected(id));
+    }
 }

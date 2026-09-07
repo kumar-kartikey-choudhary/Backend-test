@@ -22,4 +22,7 @@ public interface PaymentService {
     PaymentTransactionDto refund(String id, RefundRequest request);
 
     List<PaymentTransactionDto> findAll();
+
+    /** Admin action: confirm a COD transaction's cash was collected at delivery. */
+    PaymentTransactionDto markCodCollected(String id);
 }

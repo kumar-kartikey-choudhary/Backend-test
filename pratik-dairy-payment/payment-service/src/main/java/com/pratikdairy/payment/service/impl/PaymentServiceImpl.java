@@ -295,6 +295,27 @@ public class PaymentServiceImpl implements PaymentService {
         return transactionRepository.findAll().stream().map(this::toDto).toList();
     }
 
+    @Override
+    @Transactional
+    public PaymentTransactionDto markCodCollected(String id) {
+        PaymentTransaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Payment transaction not found: " + id));
+
+        if (transaction.getMethod() != PaymentMethod.COD) {
+            throw new IllegalStateException("Only a Cash on Delivery transaction can be marked collected");
+        }
+        if (transaction.getStatus() != PaymentStatus.PENDING) {
+            throw new IllegalStateException("Only a PENDING COD transaction can be marked collected");
+        }
+
+        transaction.setStatus(PaymentStatus.SUCCESS);
+        transaction.setPaidAt(LocalDateTime.now());
+
+        PaymentTransaction saved = transactionRepository.saveAndFlush(transaction);
+        notifyOrderService(saved, "SUCCESS");
+        return toDto(saved);
+    }
+
     private PaymentTransactionDto toDto(PaymentTransaction t) {
         PaymentTransactionDto dto = new PaymentTransactionDto();
         dto.setId(t.getId());
