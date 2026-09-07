@@ -23,12 +23,6 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        // Razorpay calls this directly - there is no customer JWT on this
-                        // request. Authenticity is proven by the webhook signature header
-                        // instead (verified inside PaymentServiceImpl.handleWebhook()), not by
-                        // Spring Security, so this route has to be open at the filter-chain
-                        // level. Never add another route here without an equivalent
-                        // non-JWT verification step.
                         .requestMatchers("/payments/webhook/razorpay").permitAll()
                         .anyRequest().authenticated()
                 )

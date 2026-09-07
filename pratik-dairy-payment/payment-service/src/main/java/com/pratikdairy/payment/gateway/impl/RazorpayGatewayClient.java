@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -54,11 +55,12 @@ public class RazorpayGatewayClient implements PaymentGatewayClient {
                 .multiply(BigDecimal.valueOf(100))
                 .longValueExact();
 
-        Map<String, Object> body = Map.of(
-                "amount", amountInSubunits,
-                "currency", currency,
-                "receipt", receipt
-        );
+        Map<String, Object> body = new HashMap<>();
+        body.put("amount", amountInSubunits);
+        body.put("currency", currency);
+        if (receipt != null) {
+            body.put("receipt", receipt);
+        }
 
         ResponseEntity<Map> response = restTemplate.exchange(
                 properties.getBaseUrl() + "/orders",
