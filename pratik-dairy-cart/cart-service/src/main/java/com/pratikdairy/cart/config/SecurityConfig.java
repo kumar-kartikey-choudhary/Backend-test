@@ -1,5 +1,6 @@
 package com.pratikdairy.cart.config;
 
+import com.pratikdairy.parent.security.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,7 +23,7 @@ public class SecurityConfig {
 
 
     @Autowired
-    private CartJwtAuthFilter jwtAuthFilter;
+    private JwtAuthFilter jwtAuthFilter;
 
 
     @Bean

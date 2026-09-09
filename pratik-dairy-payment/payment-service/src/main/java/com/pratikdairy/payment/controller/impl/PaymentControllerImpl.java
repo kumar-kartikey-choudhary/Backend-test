@@ -56,6 +56,11 @@ public class PaymentControllerImpl implements PaymentController {
     }
 
     @Override
+    public ResponseEntity<PaymentTransactionDto> convertToCod(String id) {
+        return ResponseEntity.ok(paymentService.convertToCod(id));
+    }
+
+    @Override
     public ResponseEntity<PaymentTransactionDto> refund(String id, RefundRequest request) {
         return ResponseEntity.ok(paymentService.refund(id, request));
     }

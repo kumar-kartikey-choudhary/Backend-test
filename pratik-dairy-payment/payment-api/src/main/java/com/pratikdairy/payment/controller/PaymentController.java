@@ -41,6 +41,14 @@ public interface PaymentController {
     @DeleteMapping(path = "saved-methods/{id}")
     void deleteSavedMethod(@PathVariable(name = "id") String id);
 
+    // Customer backed out of (or failed) the online payment sheet and chose "Place order
+    // anyway" instead of retrying - switches this transaction to COD so the order still goes
+    // through and gets collected at delivery. Only the transaction's own owner may do this
+    // (enforced in PaymentServiceImpl, same as verify()); it's a customer action, not an
+    // admin one, hence no @PreAuthorize here.
+    @PostMapping(path = "{id}/convert-to-cod")
+    ResponseEntity<PaymentTransactionDto> convertToCod(@PathVariable(name = "id") String id);
+
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PostMapping(path = "admin/{id}/refund")
     ResponseEntity<PaymentTransactionDto> refund(@PathVariable(name = "id") String id,

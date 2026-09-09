@@ -1,4 +1,4 @@
-package com.pratikdairy.product.config;
+package com.pratikdairy.parent.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -21,13 +21,13 @@ import java.util.List;
 
 @Slf4j
 @Component
-public class ProductJwtAuthFilter extends OncePerRequestFilter {
+public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Value("${jwt.secret}")
-    private String SECRET;
+    private String secret;
 
     private Key getSecretKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
     @Override
@@ -38,6 +38,7 @@ public class ProductJwtAuthFilter extends OncePerRequestFilter {
         final String header = request.getHeader("Authorization");
 
         if (header == null || !header.startsWith("Bearer ")) {
+            log.debug("No Bearer token found for request: {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
@@ -53,12 +54,17 @@ public class ProductJwtAuthFilter extends OncePerRequestFilter {
             String username = claims.getSubject();
             String role = claims.get("role", String.class);
 
+            log.debug("JWT valid - username: {}, role: {}", username, role);
+
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                            username, null,
+                            username,
+                            null,
                             List.of(new SimpleGrantedAuthority(role))
                     );
+
             SecurityContextHolder.getContext().setAuthentication(authentication);
+
         } catch (Exception e) {
             log.error("JWT validation failed: {}", e.getMessage());
         }

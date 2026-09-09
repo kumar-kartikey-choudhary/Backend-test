@@ -196,6 +196,38 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
+    // Customer chose "Place order anyway" after backing out of / failing the online payment
+    // sheet (e.g. dismissed Razorpay's UPI screen). Switches this transaction to COD so the
+    // order isn't left stuck - same PENDING state a COD order would already be in, just
+    // reached from a different starting method. If they instead retry and pay successfully
+    // before ever calling this, verify() already moved the transaction to SUCCESS and this
+    // guard below stops a stale "place order anyway" popup click from reverting that.
+    @Override
+    @Transactional
+    public PaymentTransactionDto convertToCod(String id) {
+        log.info("Inside @class PaymentServiceImpl @method convertToCod @param id: {}", id);
+        String username = getUsername();
+
+        PaymentTransaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Payment transaction not found: " + id));
+
+        if (!transaction.getUsername().equals(username)) {
+            throw new AccessDeniedException("This payment does not belong to the current user");
+        }
+        if (transaction.getStatus() != PaymentStatus.PENDING) {
+            throw new IllegalStateException(
+                    "Only a PENDING payment can be switched to Cash on Delivery - this one is " + transaction.getStatus());
+        }
+        if (transaction.getMethod() == PaymentMethod.COD) {
+            // Already COD - nothing to do, just hand back the current state.
+            return toDto(transaction);
+        }
+
+        transaction.setMethod(PaymentMethod.COD);
+        PaymentTransaction saved = transactionRepository.saveAndFlush(transaction);
+        return toDto(saved);
+    }
+
     @Override
     @Transactional
     public boolean handleWebhook(String rawPayload, String signatureHeader) {
