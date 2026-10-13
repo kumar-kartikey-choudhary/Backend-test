@@ -1,7 +1,9 @@
 package com.pratikdairy.user.controller.impl;
 
 import com.pratikdairy.user.controller.NotificationController;
+import com.pratikdairy.user.dto.AdminNotificationRequest;
 import com.pratikdairy.user.dto.CreateNotificationRequest;
+import com.pratikdairy.user.dto.SentNotificationsDto;
 import com.pratikdairy.user.dto.NotificationDto;
 import com.pratikdairy.user.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +46,11 @@ public class NotificationControllerImpl implements NotificationController {
     @Override
     public void delete(String id) {
         notificationService.delete(id);
+    }
+
+    @Override
+    public ResponseEntity<SentNotificationsDto> sendAsAdmin(AdminNotificationRequest request) {
+        return ResponseEntity.ok(new SentNotificationsDto(notificationService.sendAsAdmin(request)));
     }
 
     @Override

@@ -39,6 +39,12 @@ public class OrderItems extends BaseEntity {
     @Column(name = "WEIGHT", columnDefinition = "VARCHAR(20)")
     private String weight;
 
+    // The product's stock unit ("kg", "pcs" ...) when this was bought. Stock is put back in this unit
+    // when the order is cancelled, so a later change to the product's unit can't make the amount wrong.
+    // Null on lines placed before this was recorded (the product's current unit is used for those).
+    @Column(name = "UNIT", columnDefinition = "VARCHAR(20)")
+    private String unit;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
     @JsonIgnore

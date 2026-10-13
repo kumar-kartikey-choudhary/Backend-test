@@ -17,6 +17,9 @@ public interface ProductService {
 
     List<ProductDto> findAll();
 
+    /** The product with its image ids but without the image bytes - for callers that only need the details. */
+    ProductDto findLight(String id);
+
     List<ProductDto> findByCategory(Category category);
 
     ProductDto update(ProductDto productDto, String id);

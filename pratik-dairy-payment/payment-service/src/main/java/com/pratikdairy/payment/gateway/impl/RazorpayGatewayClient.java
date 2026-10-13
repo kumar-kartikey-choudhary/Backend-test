@@ -1,5 +1,7 @@
 package com.pratikdairy.payment.gateway.impl;
 
+import com.pratikdairy.parent.exception.ExternalServiceException;
+import com.pratikdairy.parent.exception.OperationFailedException;
 import com.pratikdairy.payment.config.RazorpayProperties;
 import com.pratikdairy.payment.enums.PaymentMethod;
 import com.pratikdairy.payment.gateway.*;
@@ -71,7 +73,7 @@ public class RazorpayGatewayClient implements PaymentGatewayClient {
 
         Map<?, ?> result = response.getBody();
         if (result == null || result.get("id") == null) {
-            throw new RuntimeException("Razorpay did not return an order id");
+            throw new ExternalServiceException("Razorpay did not return an order id");
         }
         return new GatewayOrder((String) result.get("id"), currency, amountInSubunits);
     }
@@ -87,6 +89,12 @@ public class RazorpayGatewayClient implements PaymentGatewayClient {
 
     @Override
     public boolean verifyWebhookSignature(String rawPayload, String signatureHeader) {
+        // With no secret configured nothing can be authenticated, so refuse every webhook rather than
+        // checking against a well-known placeholder that anyone could sign with.
+        if (properties.getWebhookSecret() == null || properties.getWebhookSecret().isBlank()) {
+            log.warn("Rejecting Razorpay webhook: razorpay.webhook-secret (RAZORPAY_WEBHOOK_SECRET) is not set");
+            return false;
+        }
         String expected = hmacSha256Hex(rawPayload, properties.getWebhookSecret());
         return constantTimeEquals(expected, signatureHeader);
     }
@@ -102,7 +110,7 @@ public class RazorpayGatewayClient implements PaymentGatewayClient {
 
         Map<?, ?> result = response.getBody();
         if (result == null) {
-            throw new RuntimeException("Razorpay returned no payment details for " + gatewayPaymentId);
+            throw new ExternalServiceException("Razorpay returned no payment details for " + gatewayPaymentId);
         }
 
         String methodRaw = String.valueOf(result.get("method"));
@@ -153,39 +161,83 @@ public class RazorpayGatewayClient implements PaymentGatewayClient {
 
         Map<?, ?> result = response.getBody();
         if (result == null || result.get("id") == null) {
-            throw new RuntimeException("Razorpay did not return a customer id");
+            throw new ExternalServiceException("Razorpay did not return a customer id");
         }
         return (String) result.get("id");
     }
 
     @Override
     public GatewaySavedCard tokenizeCard(String gatewayCustomerId, String gatewayPaymentId) {
-        // Razorpay auto-saves the card as a token against the customer when Checkout was opened
-        // with `save: 1` and a `customer_id` (wired in on the frontend - see PaymentInit.ts).
-        // Rather than guess which token corresponds to this payment, we fetch the customer's
-        // token list and take the most recent one.
+        // Checkout, opened with this customer_id, saves the card as a token on the customer. Rather than guess
+        // which token this payment produced, ask the payment (it names its token) and fall back to matching
+        // the card, then to the newest token.
+        String tokenId = null;
+        String last4 = null;
+        String network = null;
+        try {
+            ResponseEntity<Map> paymentResponse = restTemplate.exchange(
+                    properties.getBaseUrl() + "/payments/" + gatewayPaymentId,
+                    HttpMethod.GET, new HttpEntity<>(authHeaders()), Map.class);
+            Map<?, ?> payment = paymentResponse.getBody();
+            if (payment != null) {
+                tokenId = payment.get("token_id") instanceof String t ? t : null;
+                if (payment.get("card") instanceof Map<?, ?> card) {
+                    last4 = (String) card.get("last4");
+                    network = (String) card.get("network");
+                }
+            }
+        } catch (RuntimeException e) {
+            log.warn("Could not read payment {} while looking for its saved card: {}", gatewayPaymentId, e.getMessage());
+        }
+
+        if (tokenId != null) {
+            ResponseEntity<Map> tokenResponse = restTemplate.exchange(
+                    properties.getBaseUrl() + "/customers/" + gatewayCustomerId + "/tokens/" + tokenId,
+                    HttpMethod.GET, new HttpEntity<>(authHeaders()), Map.class);
+            GatewaySavedCard card = toSavedCard(tokenResponse.getBody());
+            if (card != null) {
+                return card;
+            }
+        }
+
         ResponseEntity<Map> response = restTemplate.exchange(
                 properties.getBaseUrl() + "/customers/" + gatewayCustomerId + "/tokens",
                 HttpMethod.GET,
                 new HttpEntity<>(authHeaders()),
                 Map.class
         );
-
         Map<?, ?> result = response.getBody();
-        if (result == null) return null;
-        Object itemsObj = result.get("items");
-        if (!(itemsObj instanceof List<?> items) || items.isEmpty()) {
+        if (result == null || !(result.get("items") instanceof List<?> items) || items.isEmpty()) {
             return null;
         }
-        Object first = items.get(0);
-        if (!(first instanceof Map<?, ?> token)) return null;
+        Map<?, ?> chosen = null;
+        for (Object item : items) {
+            if (!(item instanceof Map<?, ?> token)) continue;
+            boolean sameCard = last4 != null && token.get("card") instanceof Map<?, ?> c
+                    && last4.equals(c.get("last4"))
+                    && (network == null || network.equalsIgnoreCase(String.valueOf(c.get("network"))));
+            if (sameCard) {
+                chosen = token;
+                break;
+            }
+            if (chosen == null || createdAt(token) > createdAt(chosen)) {
+                chosen = token; // otherwise the most recently created one
+            }
+        }
+        return toSavedCard(chosen);
+    }
 
-        Object cardObj = token.get("card");
+    private static long createdAt(Map<?, ?> token) {
+        return token.get("created_at") instanceof Number n ? n.longValue() : 0L;
+    }
+
+    private static GatewaySavedCard toSavedCard(Map<?, ?> token) {
+        if (token == null || token.get("id") == null) return null;
         String last4 = null;
         String network = null;
         Integer expMonth = null;
         Integer expYear = null;
-        if (cardObj instanceof Map<?, ?> card) {
+        if (token.get("card") instanceof Map<?, ?> card) {
             last4 = (String) card.get("last4");
             network = (String) card.get("network");
             Object m = card.get("expiry_month");
@@ -193,8 +245,19 @@ public class RazorpayGatewayClient implements PaymentGatewayClient {
             if (m != null) expMonth = Integer.valueOf(String.valueOf(m));
             if (y != null) expYear = Integer.valueOf(String.valueOf(y));
         }
-
         return new GatewaySavedCard((String) token.get("id"), last4, network, expMonth, expYear);
+    }
+
+    @Override
+    public void deleteToken(String gatewayCustomerId, String gatewayTokenId) {
+        try {
+            restTemplate.exchange(
+                    properties.getBaseUrl() + "/customers/" + gatewayCustomerId + "/tokens/" + gatewayTokenId,
+                    HttpMethod.DELETE, new HttpEntity<>(authHeaders()), Map.class);
+        } catch (RuntimeException e) {
+            // The card is removed from our side regardless; at worst Checkout keeps offering it until it expires.
+            log.warn("Could not remove token {} on the gateway: {}", gatewayTokenId, e.getMessage());
+        }
     }
 
     @Override
@@ -213,7 +276,7 @@ public class RazorpayGatewayClient implements PaymentGatewayClient {
 
         Map<?, ?> result = response.getBody();
         if (result == null || result.get("id") == null) {
-            throw new RuntimeException("Razorpay did not return a refund id");
+            throw new ExternalServiceException("Razorpay did not return a refund id");
         }
         return new GatewayRefund((String) result.get("id"), (String) result.get("status"));
     }
@@ -226,7 +289,7 @@ public class RazorpayGatewayClient implements PaymentGatewayClient {
             return HexFormat.of().formatHex(hash);
         } catch (Exception e) {
             log.error("HMAC computation failed", e);
-            throw new RuntimeException("Signature computation failed", e);
+            throw new OperationFailedException("Signature computation failed", e);
         }
     }
 

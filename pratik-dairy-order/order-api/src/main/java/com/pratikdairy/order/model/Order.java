@@ -56,6 +56,11 @@ public class Order extends  BaseEntity{
     // OrderServiceImpl.recordPaymentResult()), which appends to statusHistory below rather than
     // duplicating payment state in this table.
 
+    // Where this order is to be delivered. Null on orders placed before delivery addresses
+    // were collected.
+    @Embedded
+    private DeliveryAddress deliveryAddress;
+
     @NotNull
     @OneToMany(cascade = CascadeType.ALL , mappedBy = "order",orphanRemoval = true)
     private List<OrderItems> items  = new ArrayList<>();

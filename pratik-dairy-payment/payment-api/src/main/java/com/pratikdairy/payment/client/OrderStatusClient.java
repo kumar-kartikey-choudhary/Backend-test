@@ -1,6 +1,8 @@
 package com.pratikdairy.payment.client;
 
+import com.pratikdairy.payment.dto.OrderSummaryDto;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,6 +16,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 // PaymentServiceImpl.handleWebhook()'s comment.
 @FeignClient(name = "PRATIK-DAIRY-ORDER", path = "orders", primary = false)
 public interface OrderStatusClient {
+
+    // The order as the order service sees it (status, total, owner). Read with the internal key rather
+    // than the caller's token, so it also works where there is no customer token - the Razorpay webhook.
+    // Who may act on the order is decided by payment-service itself, from the owner in the answer.
+    @GetMapping(path = "internal/{orderId}/summary")
+    OrderSummaryDto findOrderSummary(@PathVariable("orderId") String orderId);
 
     @PatchMapping(path = "internal/{orderId}/payment-result")
     void notifyPaymentResult(

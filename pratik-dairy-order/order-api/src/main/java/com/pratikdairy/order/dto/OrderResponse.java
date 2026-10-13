@@ -25,6 +25,8 @@ public class OrderResponse extends BaseDto {
     // OrderServiceImpl.recordPaymentResult()), not as a separate payments list - actual payment
     // records (transaction ids, gateway details) live in payment-service, not order-service.
     private List<OrderStatusHistoryDto> statusHistory = new ArrayList<>();
+    // null for orders placed before delivery addresses were collected
+    private DeliveryAddressDto deliveryAddress;
 
     // Used by create()/updateStatus() for the customer's own view - no explicit date needed there
     public OrderResponse(String id, String username, OrderStatus status,

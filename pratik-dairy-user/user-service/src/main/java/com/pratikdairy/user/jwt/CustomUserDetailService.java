@@ -19,12 +19,13 @@ public class CustomUserDetailService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         log.info("Inside @class CustomUserDetailService @method loadUserByUsername");
-        try{
-            User user= this.userRepository.findByUsername(username).orElseThrow(()-> new UsernameNotFoundException("User With this username is not found"));
-            log.info("User :{}",user);
-            return user;
-        } catch (UsernameNotFoundException e) {
-            throw new RuntimeException("User not found....");
-        }
+        // Must stay a UsernameNotFoundException: Spring's DaoAuthenticationProvider turns it into a
+        // generic BadCredentialsException, which UserServiceImpl.login() maps to a 401.
+        // A deleted account is treated as if it never existed: no sign-in, and its old tokens stop working here.
+        User user = this.userRepository.findByUsername(username)
+                .filter(u -> !u.isDeleted())
+                .orElseThrow(() -> new UsernameNotFoundException("User With this username is not found"));
+        log.info("Loaded user '{}'", user.getUsername());
+        return user;
     }
 }

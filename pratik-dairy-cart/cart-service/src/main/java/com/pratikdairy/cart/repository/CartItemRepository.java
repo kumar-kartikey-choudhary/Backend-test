@@ -10,7 +10,8 @@ import java.util.List;
 public interface CartItemRepository extends JpaRepository<CartItem, String> {
     List<CartItem> findByUsername(String username);
 
-    CartItem findByUsernameAndProductId(String username, String productId);
+    /** Every cart line of one product - one per pack size the customer has added. */
+    List<CartItem> findByUsernameAndProductId(String username, String productId);
 
     void deleteByUsernameAndProductId(String username, String productId);
 

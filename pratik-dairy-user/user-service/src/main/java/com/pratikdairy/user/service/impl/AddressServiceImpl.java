@@ -6,7 +6,8 @@ import com.pratikdairy.user.model.User;
 import com.pratikdairy.user.repository.AddressRepository;
 import com.pratikdairy.user.repository.UserRepository;
 import com.pratikdairy.user.service.AddressService;
-import jakarta.persistence.EntityNotFoundException;
+import com.pratikdairy.parent.exception.ResourceNotFoundException;
+import com.pratikdairy.parent.exception.UnauthorizedException;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,14 +34,14 @@ public class AddressServiceImpl implements AddressService {
     private String getUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
-            throw new RuntimeException("User not authenticated");
+            throw new UnauthorizedException("User not authenticated");
         }
         return auth.getName();
     }
 
     private User getCurrentUser() {
         return userRepository.findByUsername(getUsername())
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     @Override
@@ -140,7 +141,7 @@ public class AddressServiceImpl implements AddressService {
 
     private Address getOwnedOrThrow(String id) {
         Address address = addressRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Address not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Address not found with id: " + id));
         if (!address.getUser().getUsername().equals(getUsername())) {
             throw new AccessDeniedException("This address does not belong to the current user");
         }

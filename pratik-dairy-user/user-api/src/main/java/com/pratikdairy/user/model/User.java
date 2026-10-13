@@ -55,6 +55,19 @@ public class User extends BaseEntity implements UserDetails {
     @Column(name = "ROLE", columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'USER'" , nullable = false)
     private String role = "CUSTOMER";
 
+    // The customer has clicked the link we emailed to this address. Not required to shop - it is shown on the
+    // profile, and changing the email address resets it.
+    @Column(name = "EMAIL_VERIFIED", columnDefinition = "TINYINT(1) DEFAULT '0'")
+    private boolean emailVerified = false;
+
+    // A deleted account is kept as an anonymised tombstone rather than removed: orders and payments refer to
+    // the username, which must therefore never be handed to a new person. See AccountServiceImpl.deactivate().
+    @Column(name = "DELETED", columnDefinition = "TINYINT(1) DEFAULT '0'")
+    private boolean deleted = false;
+
+    @Column(name = "DELETED_AT")
+    private java.time.LocalDateTime deletedAt;
+
     @NotNull
 //    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,20}$",
 //            message = "Password must be 8-20 characters with at least one uppercase, one lowercase, one digit, and one special character (@$!%*?&)")
@@ -83,6 +96,6 @@ public class User extends BaseEntity implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return UserDetails.super.isEnabled();
+        return !deleted;   // a deleted account can no longer sign in
     }
 }

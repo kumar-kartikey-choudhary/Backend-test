@@ -19,6 +19,7 @@ public class CouponDto extends BaseDto {
     private LocalDateTime validFrom;
     private LocalDateTime validTo;
     private Integer usageLimit;
+    private Integer usageLimitPerUser;
     private int usedCount;
     private boolean active;
 }

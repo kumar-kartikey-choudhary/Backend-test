@@ -17,4 +17,7 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     Optional<PaymentTransaction> findByGatewayOrderId(String gatewayOrderId);
 
     Optional<PaymentTransaction> findByGatewayPaymentId(String gatewayPaymentId);
+
+    /** The customer record on the gateway this user last paid under, if any - reused so they keep one. */
+    Optional<PaymentTransaction> findFirstByUsernameAndGatewayCustomerIdIsNotNullOrderByCreatedAtDesc(String username);
 }

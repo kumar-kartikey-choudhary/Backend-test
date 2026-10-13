@@ -1,6 +1,10 @@
 package com.pratikdairy.user.controller;
 
+import com.pratikdairy.user.dto.AdminNotificationRequest;
 import com.pratikdairy.user.dto.CreateNotificationRequest;
+import com.pratikdairy.user.dto.SentNotificationsDto;
+import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.pratikdairy.user.dto.NotificationDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +28,15 @@ public interface NotificationController {
     @DeleteMapping(path = "{id}")
     void delete(@PathVariable(name = "id") String id);
 
-    // Service-to-service only (order-service, payment-service, etc.) - creates a notification
-    // on behalf of the named user. Not exposed to the browser; the gateway/each service's own
-    // SecurityConfig should require an authenticated caller here, same as any other internal
-    // endpoint in this codebase (see e.g. ProductController's internal stock endpoints).
+    // Admin: send a notification to one customer or to every customer. Shows up in their bell and account page.
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PostMapping(path = "admin/send")
+    ResponseEntity<SentNotificationsDto> sendAsAdmin(@Valid @RequestBody AdminNotificationRequest request);
+
+    // Service-to-service only: creates a notification on behalf of the named user. Not for the
+    // browser - the user SecurityConfig requires ROLE_SERVICE for /users/notifications/internal, which
+    // only a caller presenting the shared internal key (see InternalApiKeyFilter) is given, and the
+    // gateway doesn't route internal paths at all.
     @PostMapping(path = "internal", name = "createNotificationInternal")
     ResponseEntity<NotificationDto> create(@RequestBody CreateNotificationRequest request);
 }

@@ -25,6 +25,12 @@ public interface ProductController {
     @GetMapping(path = "product/{id}")
     ResponseEntity<ProductDto> find(@PathVariable(name = "id") String id);
 
+    // Same product, minus the image bytes (the image ids are still there - fetch pictures from
+    // images/{imageId}). What other services use: cart and order only need names, prices and units, and
+    // were pulling every picture over HTTP for every line they showed.
+    @GetMapping(path = "product/{id}", params = "imageData=false")
+    ResponseEntity<ProductDto> findLight(@PathVariable(name = "id") String id);
+
     @GetMapping(path = "all")
     ResponseEntity<List<ProductDto>> findAll();
 

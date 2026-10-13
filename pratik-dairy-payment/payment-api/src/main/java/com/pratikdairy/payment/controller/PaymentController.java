@@ -35,6 +35,24 @@ public interface PaymentController {
     @GetMapping(path = "order/{orderId}")
     ResponseEntity<List<PaymentTransactionDto>> findByOrder(@PathVariable(name = "orderId") String orderId);
 
+    // Refunds whatever was paid online for an order that has been cancelled, and closes any payment
+    // still open on it. Called by order-service after a cancellation; safe to expose because it
+    // re-reads the order and refuses unless it is really CANCELLED and belongs to the caller (or the
+    // caller is an admin). Idempotent: a second call finds nothing left to refund.
+    @PostMapping(path = "order/{orderId}/refund-cancelled")
+    ResponseEntity<List<PaymentTransactionDto>> refundCancelledOrder(@PathVariable(name = "orderId") String orderId);
+
+    // Service-to-service (order-service's unpaid-order sweep): is this order paid, or committed to cash on
+    // delivery, and when did payment last move? Only a caller holding the internal key is let in.
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping(path = "internal/order/{orderId}/summary")
+    ResponseEntity<PaymentSummaryDto> orderSummary(@PathVariable(name = "orderId") String orderId);
+
+    // Service-to-service: an order was cancelled, so close any payment attempt still open on it.
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping(path = "internal/order/{orderId}/close-open")
+    ResponseEntity<Void> closeOpenAttempts(@PathVariable(name = "orderId") String orderId);
+
     @GetMapping(path = "saved-methods")
     ResponseEntity<List<SavedPaymentMethodDto>> getSavedMethods();
 

@@ -13,7 +13,8 @@ public class InitiatePaymentRequest {
     @NotBlank(message = "orderId is required")
     private String orderId;
 
-    @NotNull(message = "amount is required")
+    // Informational only. What is charged is the order's own total, read from order-service - an
+    // amount sent by the browser can't be trusted (it could just say "1").
     @DecimalMin(value = "0.01", message = "amount must be greater than 0")
     private BigDecimal amount;
 
@@ -23,4 +24,7 @@ public class InitiatePaymentRequest {
     // If set, charge this saved card's gateway token directly instead of opening the
     // card-entry widget again. Ignored for UPI.
     private String savedPaymentMethodId;
+
+    // Card payments only: the customer wants this card remembered for next time.
+    private boolean saveCard;
 }

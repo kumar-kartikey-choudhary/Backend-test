@@ -1,6 +1,7 @@
 package com.pratikdairy.order.controller;
 
 
+import com.pratikdairy.order.dto.DeliveryAddressDto;
 import com.pratikdairy.order.dto.OrderResponse;
 import com.pratikdairy.order.enums.OrderStatus;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -16,11 +17,29 @@ public interface OrderController {
 
 
     // couponCode is optional - checkout with no code just skips the discount step.
+    // deliveryAddress is required for new orders (validated in the service); it is a body, not
+    // query params, because it has too many fields to be readable as a query string.
     @PostMapping(path = "create")
-    ResponseEntity<OrderResponse> create(@RequestParam(name = "couponCode", required = false) String couponCode);
+    ResponseEntity<OrderResponse> create(@RequestParam(name = "couponCode", required = false) String couponCode,
+                                         @RequestBody(required = false) DeliveryAddressDto deliveryAddress);
+
+    // Lets a customer cancel their own order while it hasn't shipped yet (PROCESSING/CONFIRMED).
+    // Releases the stock that was reserved at checkout.
+    @PatchMapping(path = "{id}/cancel")
+    ResponseEntity<OrderResponse> cancel(@PathVariable("id") String id);
 
     @GetMapping(path = "/findByCustomer")
     ResponseEntity<List<OrderResponse>> findByCustomerName();
+
+    // One order, for its owner or an admin. payment-service uses it to price a payment from the
+    // order itself instead of trusting an amount sent by the browser.
+    @GetMapping(path = "{id}")
+    ResponseEntity<OrderResponse> findById(@PathVariable("id") String id);
+
+    // The same order with product names and images and the status history - what an invoice needs. Its owner
+    // or an admin only.
+    @GetMapping(path = "{id}/detail")
+    ResponseEntity<OrderResponse> findDetail(@PathVariable("id") String id);
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping(path = "admin/findAll")
@@ -47,6 +66,12 @@ public interface OrderController {
     // SHIPPED/...) and payment outcome are separate concerns. The actual payment record
     // (transaction id, gateway details) lives in payment-service, not here - this is just an
     // audit-trail note so the order's timeline shows "payment succeeded/failed" inline.
+    // Service-to-service: the order as payment-service needs it (status, total, owner) - read with the
+    // internal key, so it works from places with no customer token (the Razorpay webhook, scheduled jobs).
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping(path = "internal/{orderId}/summary")
+    ResponseEntity<OrderResponse> internalSummary(@PathVariable("orderId") String orderId);
+
     @PreAuthorize("isAuthenticated()")
     @PatchMapping(path = "internal/{orderId}/payment-result")
     ResponseEntity<Void> recordPaymentResult(

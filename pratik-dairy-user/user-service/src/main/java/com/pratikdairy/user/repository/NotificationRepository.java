@@ -10,4 +10,6 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, String> {
 
     List<Notification> findByUser_UsernameOrderByCreatedAtDesc(String username);
+
+    void deleteByUser_Username(String username);
 }

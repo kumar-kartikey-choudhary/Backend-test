@@ -1,5 +1,6 @@
 package com.pratikdairy.cart.config;
 
+import com.pratikdairy.parent.security.JsonAuthenticationEntryPoint;
 import com.pratikdairy.parent.security.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -36,6 +37,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
+                // 401 (not Spring's default 403) when there is no valid login, so the frontend can refresh the token.
+                .exceptionHandling(e -> e.authenticationEntryPoint(new JsonAuthenticationEntryPoint()))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

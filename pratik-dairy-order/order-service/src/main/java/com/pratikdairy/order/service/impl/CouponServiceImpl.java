@@ -1,10 +1,12 @@
 package com.pratikdairy.order.service.impl;
 
+import com.pratikdairy.parent.exception.BadRequestException;
+import com.pratikdairy.parent.exception.DuplicateResourceException;
+import com.pratikdairy.parent.exception.ResourceNotFoundException;
 import com.pratikdairy.order.dto.CouponDto;
 import com.pratikdairy.order.model.Coupon;
 import com.pratikdairy.order.repository.CouponRepository;
 import com.pratikdairy.order.service.CouponService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,13 +30,13 @@ public class CouponServiceImpl implements CouponService {
     public CouponDto create(CouponDto couponDto) {
         log.info("Inside @class CouponServiceImpl @method create @param couponDto: {}", couponDto);
         if (couponDto == null || couponDto.getCode() == null || couponDto.getCode().isBlank()) {
-            throw new IllegalArgumentException("Coupon code is required");
+            throw new BadRequestException("Coupon code is required");
         }
         if (couponDto.getDiscountType() == null || couponDto.getDiscountValue() == null) {
-            throw new IllegalArgumentException("discountType and discountValue are required");
+            throw new BadRequestException("discountType and discountValue are required");
         }
         if (couponRepository.existsByCodeIgnoreCase(couponDto.getCode())) {
-            throw new IllegalArgumentException("Coupon code '" + couponDto.getCode() + "' already exists");
+            throw new DuplicateResourceException("Coupon code '" + couponDto.getCode() + "' already exists");
         }
 
         Coupon coupon = new Coupon();
@@ -46,6 +48,7 @@ public class CouponServiceImpl implements CouponService {
         coupon.setValidFrom(couponDto.getValidFrom());
         coupon.setValidTo(couponDto.getValidTo());
         coupon.setUsageLimit(couponDto.getUsageLimit());
+        coupon.setUsageLimitPerUser(couponDto.getUsageLimitPerUser());
         coupon.setActive(true);
 
         return toDto(couponRepository.saveAndFlush(coupon));
@@ -59,7 +62,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     public CouponDto find(String code) {
         Coupon coupon = couponRepository.findByCodeIgnoreCase(code)
-                .orElseThrow(() -> new EntityNotFoundException("Coupon not found with code: " + code));
+                .orElseThrow(() -> new ResourceNotFoundException("Coupon not found with code: " + code));
         return toDto(coupon);
     }
 
@@ -67,7 +70,7 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public CouponDto update(CouponDto couponDto, String id) {
         Coupon coupon = couponRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Coupon not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Coupon", id));
 
         if (couponDto.getDiscountType() != null) {
             coupon.setDiscountType(couponDto.getDiscountType());
@@ -80,6 +83,7 @@ public class CouponServiceImpl implements CouponService {
         coupon.setValidFrom(couponDto.getValidFrom());
         coupon.setValidTo(couponDto.getValidTo());
         coupon.setUsageLimit(couponDto.getUsageLimit());
+        coupon.setUsageLimitPerUser(couponDto.getUsageLimitPerUser());
         coupon.setActive(couponDto.isActive());
 
         return toDto(couponRepository.saveAndFlush(coupon));
@@ -89,7 +93,7 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public void delete(String id) {
         if (!couponRepository.existsById(id)) {
-            throw new EntityNotFoundException("Coupon not found with id: " + id);
+            throw new ResourceNotFoundException("Coupon", id);
         }
         couponRepository.deleteById(id);
     }
@@ -105,6 +109,7 @@ public class CouponServiceImpl implements CouponService {
         dto.setValidFrom(coupon.getValidFrom());
         dto.setValidTo(coupon.getValidTo());
         dto.setUsageLimit(coupon.getUsageLimit());
+        dto.setUsageLimitPerUser(coupon.getUsageLimitPerUser());
         dto.setUsedCount(coupon.getUsedCount());
         dto.setActive(coupon.isActive());
         dto.setCreatedAt(coupon.getCreatedAt());

@@ -46,6 +46,22 @@ public class PaymentControllerImpl implements PaymentController {
     }
 
     @Override
+    public ResponseEntity<PaymentSummaryDto> orderSummary(String orderId) {
+        return ResponseEntity.ok(paymentService.summarize(orderId));
+    }
+
+    @Override
+    public ResponseEntity<Void> closeOpenAttempts(String orderId) {
+        paymentService.closeOpenAttempts(orderId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<List<PaymentTransactionDto>> refundCancelledOrder(String orderId) {
+        return ResponseEntity.ok(paymentService.refundCancelledOrder(orderId));
+    }
+
+    @Override
     public ResponseEntity<List<SavedPaymentMethodDto>> getSavedMethods() {
         return ResponseEntity.ok(paymentService.getSavedMethods());
     }

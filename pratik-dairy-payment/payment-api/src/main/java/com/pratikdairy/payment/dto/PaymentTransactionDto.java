@@ -22,5 +22,7 @@ public class PaymentTransactionDto extends BaseDto {
     private String gatewayPaymentId;
     private String upiVpa;
     private String failureReason;
+    // Part (or all) of the amount already returned to the customer; see PaymentTransaction.refundedAmount.
+    private BigDecimal refundedAmount;
     private LocalDateTime paidAt;
 }

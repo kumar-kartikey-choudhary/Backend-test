@@ -48,6 +48,10 @@ public class Coupon extends BaseEntity {
     @Column(name = "USAGE_LIMIT")
     private Integer usageLimit;
 
+    // How many times ONE customer may use this code (cancelled orders don't count). Null = no per-person limit.
+    @Column(name = "USAGE_LIMIT_PER_USER")
+    private Integer usageLimitPerUser;
+
     @Column(name = "USED_COUNT", columnDefinition = "INT DEFAULT '0'")
     private int usedCount = 0;
 

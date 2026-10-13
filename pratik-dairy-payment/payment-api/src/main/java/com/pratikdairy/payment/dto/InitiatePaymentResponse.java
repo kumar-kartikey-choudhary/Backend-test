@@ -18,4 +18,12 @@ public class InitiatePaymentResponse {
     private String keyId;                // Razorpay public key, for Checkout.js
     private BigDecimal amount;
     private String currency;
+    // Set when a card is being saved or a saved card reused: Checkout must be opened with this customer
+    // so it can show / store that customer's cards. Null otherwise.
+    private String gatewayCustomerId;
+
+    public InitiatePaymentResponse(String paymentTransactionId, String gatewayOrderId, String keyId,
+                                   BigDecimal amount, String currency) {
+        this(paymentTransactionId, gatewayOrderId, keyId, amount, currency, null);
+    }
 }

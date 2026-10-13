@@ -21,6 +21,18 @@ public interface PaymentService {
 
     PaymentTransactionDto refund(String id, RefundRequest request);
 
+    /**
+     * Refunds online payments on an order that order-service reports as CANCELLED, and fails any
+     * payment still open on it. Returns the transactions it changed.
+     */
+    List<PaymentTransactionDto> refundCancelledOrder(String orderId);
+
+    /** For order-service: has this order been paid / committed to cash on delivery, and when did payment last move? */
+    PaymentSummaryDto summarize(String orderId);
+
+    /** For order-service: an order was cancelled - fail any payment attempt still open on it. */
+    void closeOpenAttempts(String orderId);
+
     List<PaymentTransactionDto> findAll();
 
     /** Admin action: confirm a COD transaction's cash was collected at delivery. */

@@ -21,13 +21,11 @@ import java.util.List;
 public class JwtAuthentication implements GatewayFilter {
 
     private final JwtUtils jwtUtils;
-    // Define public routes that should bypass token validation
     public static final List<String> PUBLIC_ENDPOINTS = List.of(
             "/users/login",
             "/users/register",
             "/products/all",
             "/products/search"
-            // Add other public paths as needed
     );
 
     @Autowired
@@ -40,7 +38,6 @@ public class JwtAuthentication implements GatewayFilter {
         exchange.getResponse().setStatusCode(httpStatus);
         exchange.getResponse().getHeaders().add(HttpHeaders.CONTENT_TYPE, "application/json");
         log.warn("Authentication rejected for path {}: {}", exchange.getRequest().getURI().getPath(), err);
-        // Returns a simple JSON error response
         String responseBody = "{\"error\": \"" + err + "\", \"status\": " + httpStatus.value() +"}";
         return exchange.getResponse().writeWith(
                 Mono.just(exchange.getResponse().bufferFactory().wrap(responseBody.getBytes()))

@@ -33,7 +33,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final List<String> PUBLIC_PATH = List.of(
             "/users/register",
             "/users/login",
-            "/users/refresh-token"
+            "/users/refresh-token",
+            "/users/forgot-password",
+            "/users/reset-password",
+            "/users/verify-email",
+            "/users/contact"
     );
 
     @Override
@@ -73,7 +77,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if(username != null && SecurityContextHolder.getContext().getAuthentication() == null)
         {
             log.info("Going to CustomUserDetailService");
-            UserDetails userDetails = this.detailService.loadUserByUsername(username);
+            UserDetails userDetails;
+            try {
+                userDetails = this.detailService.loadUserByUsername(username);
+            } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+                // The token belongs to an account that no longer exists (deleted): carry on unauthenticated,
+                // which the security chain answers with 401, rather than failing the request with a 500.
+                filterChain.doFilter(request, response);
+                return;
+            }
             if(this.jwtUtils.isTokenValidate(token, userDetails))
             {
                 UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

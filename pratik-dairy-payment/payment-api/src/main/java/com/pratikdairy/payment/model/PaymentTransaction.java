@@ -55,6 +55,16 @@ public class PaymentTransaction extends BaseEntity {
 
     // Set if the customer paid via UPI - the gateway's payer handle (e.g. "name@bank"), safe to
     // store since it's not a secret the way card data is.
+    // How much of AMOUNT has been sent back to the customer so far. Stays below AMOUNT (and the status stays
+    // SUCCESS) while only part has been refunded; the status becomes REFUNDED once all of it has.
+    @Column(name = "REFUNDED_AMOUNT")
+    private BigDecimal refundedAmount = BigDecimal.ZERO;
+
+    // The customer record on the gateway this payment was made under (card payments where the customer
+    // saves or reuses a card). Kept so the card saved by THIS payment is looked up on the same customer.
+    @Column(name = "GATEWAY_CUSTOMER_ID")
+    private String gatewayCustomerId;
+
     @Column(name = "UPI_VPA")
     private String upiVpa;
 

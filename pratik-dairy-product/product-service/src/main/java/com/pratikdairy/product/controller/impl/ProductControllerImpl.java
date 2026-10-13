@@ -41,6 +41,11 @@ public class ProductControllerImpl implements ProductController {
     }
 
     @Override
+    public ResponseEntity<ProductDto> findLight(String id) {
+        return ResponseEntity.ok(productService.findLight(id));
+    }
+
+    @Override
     public ResponseEntity<List<ProductDto>> findAll() {
         return ResponseEntity.ok(productService.findAll());
     }

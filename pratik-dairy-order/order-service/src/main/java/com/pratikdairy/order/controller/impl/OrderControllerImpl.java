@@ -1,6 +1,7 @@
 package com.pratikdairy.order.controller.impl;
 
 import com.pratikdairy.order.controller.OrderController;
+import com.pratikdairy.order.dto.DeliveryAddressDto;
 import com.pratikdairy.order.dto.OrderResponse;
 import com.pratikdairy.order.enums.OrderStatus;
 import com.pratikdairy.order.service.OrderService;
@@ -26,13 +27,28 @@ public class OrderControllerImpl implements OrderController {
 
 
     @Override
-    public ResponseEntity<OrderResponse> create(String couponCode) {
-        return new ResponseEntity<>(this.orderService.create(couponCode), HttpStatus.CREATED);
+    public ResponseEntity<OrderResponse> create(String couponCode, DeliveryAddressDto deliveryAddress) {
+        return new ResponseEntity<>(this.orderService.create(couponCode, deliveryAddress), HttpStatus.CREATED);
+    }
+
+    @Override
+    public ResponseEntity<OrderResponse> cancel(String id) {
+        return ResponseEntity.ok(this.orderService.cancel(id));
     }
 
     @Override
     public ResponseEntity<List<OrderResponse>> findByCustomerName() {
         return ResponseEntity.ok(this.orderService.findByCustomerName());
+    }
+
+    @Override
+    public ResponseEntity<OrderResponse> findById(String id) {
+        return ResponseEntity.ok(this.orderService.findById(id));
+    }
+
+    @Override
+    public ResponseEntity<OrderResponse> findDetail(String id) {
+        return ResponseEntity.ok(this.orderService.findDetail(id));
     }
 
     @Override
@@ -49,6 +65,11 @@ public class OrderControllerImpl implements OrderController {
     @Override
     public void delete(String id) {
         this.orderService.delete(id);
+    }
+
+    @Override
+    public ResponseEntity<OrderResponse> internalSummary(String orderId) {
+        return ResponseEntity.ok(this.orderService.findForService(orderId));
     }
 
     @Override

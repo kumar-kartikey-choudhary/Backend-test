@@ -1,5 +1,8 @@
 package com.pratikdairy.product.service.impl;
 
+import com.pratikdairy.parent.exception.BadRequestException;
+import com.pratikdairy.parent.exception.OperationFailedException;
+import com.pratikdairy.parent.exception.ResourceNotFoundException;
 import com.pratikdairy.product.dto.InventoryLedgerDto;
 import com.pratikdairy.product.dto.ProductDto;
 import com.pratikdairy.product.dto.ProductImageDto;
@@ -11,14 +14,16 @@ import com.pratikdairy.product.model.ProductImage;
 import com.pratikdairy.product.repository.InventoryLedgerRepository;
 import com.pratikdairy.product.repository.ProductImageRepository;
 import com.pratikdairy.product.repository.ProductRepository;
+import com.pratikdairy.product.repository.ProductReviewRepository;
+import com.pratikdairy.product.repository.WishlistItemRepository;
 import com.pratikdairy.product.service.ProductService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,6 +36,12 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final ProductImageRepository imageRepository;
     private final InventoryLedgerRepository ledgerRepository;
+
+    // Optional collaborators: set after construction so the existing constructor (and its tests) are unchanged.
+    @Autowired(required = false)
+    private WishlistItemRepository wishlistItems;
+    @Autowired(required = false)
+    private ProductReviewRepository productReviews;
 
     @Autowired
     public ProductServiceImpl(ProductRepository productRepository,
@@ -46,20 +57,22 @@ public class ProductServiceImpl implements ProductService {
     public ProductDto create(ProductDto productDto) {
         log.info("Inside @class ProductServiceImpl @method create @param productDto: {}", productDto);
         if (productDto == null) {
-            throw new IllegalArgumentException("Product object can not be null");
+            throw new BadRequestException("Product object can not be null");
         }
         if (productDto.getCategory() == null) {
-            throw new IllegalArgumentException("category is required");
+            throw new BadRequestException("category is required");
         }
         if (productDto.getPrice() == null || productDto.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("price must be greater than 0");
+            throw new BadRequestException("price must be greater than 0");
         }
 
         Product product = new Product();
         product.setId(null);
         product.setProductName(productDto.getProductName());
         product.setPrice(productDto.getPrice());
-        product.setAvailable(productDto.isAvailable());
+        if (productDto.getAvailable() != null) {
+            product.setAvailable(productDto.getAvailable()); // otherwise the entity default: available
+        }
         product.setStockUnit(productDto.getStockUnit());
         product.setStockQuantity(productDto.getStockQuantity() != null ? productDto.getStockQuantity() : BigDecimal.ZERO);
         product.setCategory(productDto.getCategory());
@@ -88,6 +101,11 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public ProductDto findLight(String id) {
+        return toDto(getProductOrThrow(id), false);
+    }
+
+    @Override
     public List<ProductDto> findAll() {
         return productRepository.findAll().stream().map(p -> toDto(p, false)).toList();
     }
@@ -103,25 +121,43 @@ public class ProductServiceImpl implements ProductService {
         log.info("Inside @class ProductServiceImpl @method update @param id: {}, productDto: {}", id, productDto);
         Product product = getProductOrThrow(id);
 
-        if (productDto.getProductName() != null) {
+        // PATCH: only what the request actually contained is changed. A field that is missing is left
+        // alone; one sent as null is cleared - except the ones every product must have, which a null can't unset.
+        if (productDto.isProvided("productName") && productDto.getProductName() != null) {
             product.setProductName(productDto.getProductName());
         }
-        if (productDto.getPrice() != null) {
+        if (productDto.isProvided("price") && productDto.getPrice() != null) {
+            if (productDto.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BadRequestException("price must be greater than 0");
+            }
             product.setPrice(productDto.getPrice());
         }
-        product.setAvailable(productDto.isAvailable());
-        product.setStockUnit(productDto.getStockUnit());
-        product.setDescription(productDto.getDescription());
-        product.setType(productDto.getType());
-        product.setManufactureDate(productDto.getManufactureDate());
-        product.setExpiryDate(productDto.getExpiryDate());
-        product.setStatus(productDto.getStatus());
-        // Note: stockQuantity is deliberately NOT settable here - it only moves through
-        // decrementStock/restoreStock/adjustStock so every change is logged in the ledger.
-
-        if (productDto.getCategory() != null) {
+        if (productDto.isProvided("category") && productDto.getCategory() != null) {
             product.setCategory(productDto.getCategory());
         }
+        if (productDto.isProvided("available") && productDto.getAvailable() != null) {
+            product.setAvailable(productDto.getAvailable());
+        }
+        if (productDto.isProvided("stockUnit")) {
+            product.setStockUnit(productDto.getStockUnit());
+        }
+        if (productDto.isProvided("description")) {
+            product.setDescription(productDto.getDescription());
+        }
+        if (productDto.isProvided("type")) {
+            product.setType(productDto.getType());
+        }
+        if (productDto.isProvided("manufactureDate")) {
+            product.setManufactureDate(productDto.getManufactureDate());
+        }
+        if (productDto.isProvided("expiryDate")) {
+            product.setExpiryDate(productDto.getExpiryDate());
+        }
+        if (productDto.isProvided("status")) {
+            product.setStatus(productDto.getStatus());
+        }
+        // Note: stockQuantity is deliberately NOT settable here - it only moves through
+        // decrementStock/restoreStock/adjustStock so every change is logged in the ledger.
 
         Product updated = productRepository.saveAndFlush(product);
         log.info("Product {} updated", id);
@@ -133,9 +169,16 @@ public class ProductServiceImpl implements ProductService {
     public void delete(String id) {
         log.info("Inside @class ProductServiceImpl @method delete @param id: {}", id);
         if (!productRepository.existsById(id)) {
-            throw new EntityNotFoundException("Product not found with id: " + id);
+            throw new ResourceNotFoundException("Product", id);
         }
         productRepository.deleteById(id);
+        // Nobody's wishlist or review list should still point at it.
+        if (wishlistItems != null) {
+            wishlistItems.deleteByProductId(id);
+        }
+        if (productReviews != null) {
+            productReviews.deleteByProductId(id);
+        }
         log.info("Product {} deleted", id);
     }
 
@@ -153,40 +196,43 @@ public class ProductServiceImpl implements ProductService {
     public ProductDto addImage(String productId, MultipartFile imageFile, boolean primary) {
         Product product = getProductOrThrow(productId);
         if (imageFile == null || imageFile.isEmpty()) {
-            throw new IllegalArgumentException("Image file is required");
+            throw new BadRequestException("Image file is required");
         }
+        byte[] imageBytes;
         try {
-            ProductImage image = new ProductImage();
-            image.setProduct(product);
-            image.setImageName(imageFile.getOriginalFilename());
-            image.setImageType(imageFile.getContentType());
-            image.setImageData(imageFile.getBytes());
-            image.setSortOrder(product.getImages().size());
-            image.setPrimary(primary || product.getImages().isEmpty());
-
-            if (image.isPrimary()) {
-                product.getImages().forEach(existing -> existing.setPrimary(false));
-            }
-
-            product.getImages().add(image);
-            Product saved = productRepository.saveAndFlush(product);
-            return toDto(saved, true);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to store product image", e);
+            imageBytes = imageFile.getBytes();
+        } catch (IOException e) {
+            throw new OperationFailedException("Failed to store product image", e);
         }
+
+        ProductImage image = new ProductImage();
+        image.setProduct(product);
+        image.setImageName(imageFile.getOriginalFilename());
+        image.setImageType(imageFile.getContentType());
+        image.setImageData(imageBytes);
+        image.setSortOrder(product.getImages().size());
+        image.setPrimary(primary || product.getImages().isEmpty());
+
+        if (image.isPrimary()) {
+            product.getImages().forEach(existing -> existing.setPrimary(false));
+        }
+
+        product.getImages().add(image);
+        Product saved = productRepository.saveAndFlush(product);
+        return toDto(saved, true);
     }
 
     @Override
     public byte[] getImageBytes(String imageId) {
         return imageRepository.findById(imageId)
-                .orElseThrow(() -> new EntityNotFoundException("Image not found with id: " + imageId))
+                .orElseThrow(() -> new ResourceNotFoundException("Image", imageId))
                 .getImageData();
     }
 
     @Override
     public String getImageContentType(String imageId) {
         return imageRepository.findById(imageId)
-                .orElseThrow(() -> new EntityNotFoundException("Image not found with id: " + imageId))
+                .orElseThrow(() -> new ResourceNotFoundException("Image", imageId))
                 .getImageType();
     }
 
@@ -194,7 +240,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public void deleteImage(String imageId) {
         if (!imageRepository.existsById(imageId)) {
-            throw new EntityNotFoundException("Image not found with id: " + imageId);
+            throw new ResourceNotFoundException("Image", imageId);
         }
         imageRepository.deleteById(imageId);
     }
@@ -204,7 +250,7 @@ public class ProductServiceImpl implements ProductService {
     public boolean decrementStock(String id, BigDecimal quantity, String orderId) {
         log.info("Inside @class ProductServiceImpl @method decrementStock @param id: {}, quantity: {}", id, quantity);
         if (id == null || quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Invalid id or quantity");
+            throw new BadRequestException("Invalid id or quantity");
         }
         int updatedRows = productRepository.decrementStock(id, quantity);
         // updatedRows == 0 means WHERE stockQuantity >= quantity failed -> not enough stock,
@@ -221,7 +267,7 @@ public class ProductServiceImpl implements ProductService {
     public void restoreStock(String id, BigDecimal quantity, String orderId) {
         log.info("Inside @class ProductServiceImpl @method restoreStock @param id: {}, quantity: {}", id, quantity);
         if (id == null || quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Invalid id or quantity");
+            throw new BadRequestException("Invalid id or quantity");
         }
         productRepository.restoreStock(id, quantity);
         productRepository.findById(id)
@@ -232,13 +278,13 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public InventoryLedgerDto adjustStock(String id, BigDecimal changeQty, InventoryReason reason) {
         if (changeQty == null || changeQty.compareTo(BigDecimal.ZERO) == 0) {
-            throw new IllegalArgumentException("changeQty must be non-zero");
+            throw new BadRequestException("changeQty must be non-zero");
         }
         Product product = getProductOrThrow(id);
 
         BigDecimal newQty = product.getStockQuantity().add(changeQty);
         if (newQty.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Adjustment would take stock below zero");
+            throw new BadRequestException("Adjustment would take stock below zero");
         }
         product.setStockQuantity(newQty);
         productRepository.saveAndFlush(product);
@@ -257,10 +303,10 @@ public class ProductServiceImpl implements ProductService {
 
     private Product getProductOrThrow(String id) {
         if (id == null) {
-            throw new IllegalArgumentException("Product id can not be null");
+            throw new BadRequestException("Product id can not be null");
         }
         return productRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Product not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
     }
 
     private InventoryLedger recordLedgerEntry(Product product, BigDecimal changeQty, InventoryReason reason, String referenceId) {

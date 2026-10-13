@@ -32,4 +32,7 @@ public interface PaymentGatewayClient {
     String getOrCreateGatewayCustomer(String username);
 
     GatewayRefund refund(String gatewayPaymentId, BigDecimal amount);
+
+    /** Removes a saved card token on the gateway, so it stops being offered at checkout. Best effort. */
+    void deleteToken(String gatewayCustomerId, String gatewayTokenId);
 }

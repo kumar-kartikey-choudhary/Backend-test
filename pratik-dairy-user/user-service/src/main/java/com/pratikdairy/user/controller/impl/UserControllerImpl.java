@@ -1,11 +1,17 @@
 package com.pratikdairy.user.controller.impl;
 
 import com.pratikdairy.user.controller.UserController;
+import com.pratikdairy.user.dto.ChangePasswordRequest;
+import com.pratikdairy.user.dto.ForgotPasswordRequest;
 import com.pratikdairy.user.dto.LoginRequest;
 import com.pratikdairy.user.dto.LoginResponse;
 import com.pratikdairy.user.dto.RefreshTokenRequest;
 import com.pratikdairy.user.dto.RefreshTokenResponse;
+import com.pratikdairy.user.dto.ResetPasswordRequest;
 import com.pratikdairy.user.dto.UserDto;
+import com.pratikdairy.user.dto.DeleteAccountRequest;
+import com.pratikdairy.user.dto.VerifyEmailRequest;
+import com.pratikdairy.user.service.AccountService;
 import com.pratikdairy.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
@@ -26,11 +32,13 @@ import java.util.List;
 public class UserControllerImpl implements UserController {
 
     private final UserService userService;
+    private final AccountService accountService;
 
 
     @Autowired
-    public UserControllerImpl(UserService userService){
+    public UserControllerImpl(UserService userService, AccountService accountService){
         this.userService = userService;
+        this.accountService = accountService;
     }
 
     @Override
@@ -52,6 +60,41 @@ public class UserControllerImpl implements UserController {
     public ResponseEntity<Void> logout(RefreshTokenRequest request) {
         this.userService.logout(request);
         return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> forgotPassword(ForgotPasswordRequest request) {
+        this.userService.requestPasswordReset(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> resetPassword(ResetPasswordRequest request) {
+        this.userService.resetPassword(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> verifyEmail(VerifyEmailRequest request) {
+        this.accountService.verifyEmail(request.getToken());
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> resendVerification() {
+        this.accountService.resendVerification();
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> deleteAccount(DeleteAccountRequest request) {
+        this.accountService.deleteOwnAccount(request.getPassword());
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<RefreshTokenResponse> changePassword(ChangePasswordRequest request) {
+        return ResponseEntity.ok(this.userService.changePassword(request));
     }
 
     @Override
@@ -81,13 +124,9 @@ public class UserControllerImpl implements UserController {
         }
         String loggedInUsername = auth.getName();
         boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ADMIN"));
-        UserDto targetUser;
-        try {
-            targetUser = this.userService.find(id);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        // Throws ResourceNotFoundException (404) for an unknown id.
+        UserDto targetUser = this.userService.find(id);
 
         // Admin ya sirf apna account — dono allow hain
         if (!isAdmin && !loggedInUsername.equals(targetUser.getUsername())) {

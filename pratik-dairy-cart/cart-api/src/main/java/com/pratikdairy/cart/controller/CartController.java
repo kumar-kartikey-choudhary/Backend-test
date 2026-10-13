@@ -23,14 +23,15 @@ public interface CartController {
     @PatchMapping(path = "items/{productId}")
     ResponseEntity<CartItemDto> updateQuantity(
             @PathVariable String productId,
-            @RequestParam int quantity
+            @RequestParam int quantity,
+            @RequestParam(required = false) String weight
     );
 
     @GetMapping
     ResponseEntity<List<CartItemDto>> getCart();
 
     @DeleteMapping(path = "items/{productId}")
-    ResponseEntity<Void> removeFromCart( @PathVariable String productId);
+    ResponseEntity<Void> removeFromCart(@PathVariable String productId, @RequestParam(required = false) String weight);
 
     @DeleteMapping(path = "/clear")
     void clearCart();

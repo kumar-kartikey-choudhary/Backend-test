@@ -17,6 +17,8 @@ public class UserDto extends BaseDto {
     private String email;
     private String phoneNumber;
     private String role;
+    // Read-only: set by the server when the emailed link is used; anything sent by a client is ignored.
+    private boolean emailVerified;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 }

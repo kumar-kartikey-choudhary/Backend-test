@@ -41,8 +41,9 @@ public class CartControllerImpl implements CartController {
     @Override
     public ResponseEntity<CartItemDto> updateQuantity(
             @PathVariable String productId,
-            @RequestParam int quantity) {
-        CartItemDto updated = cartService.updateQuantity(productId, quantity);
+            @RequestParam int quantity,
+            @RequestParam(required = false) String weight) {
+        CartItemDto updated = cartService.updateQuantity(productId, weight, quantity);
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
@@ -50,8 +51,8 @@ public class CartControllerImpl implements CartController {
     }
 
     @Override
-    public ResponseEntity<Void> removeFromCart(String productId) {
-        boolean deleted = cartService.deleteItemFromCart(productId);
+    public ResponseEntity<Void> removeFromCart(String productId, String weight) {
+        boolean deleted = cartService.deleteItemFromCart(productId, weight);
         return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 

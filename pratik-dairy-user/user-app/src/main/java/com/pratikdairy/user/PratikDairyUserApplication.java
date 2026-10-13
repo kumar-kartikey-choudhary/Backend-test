@@ -1,6 +1,8 @@
 package com.pratikdairy.user;
 
 import com.pratikdairy.parent.configuration.AuditConfig;
+import com.pratikdairy.parent.exception.GlobalExceptionHandler;
+import com.pratikdairy.parent.security.InternalApiKeyFilter;
 import com.pratikdairy.user.model.User;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,7 +15,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @EnableFeignClients
 @EnableJpaAuditing
 @EntityScan(basePackageClasses = User.class)
-@Import(AuditConfig.class)
+@Import({AuditConfig.class, GlobalExceptionHandler.class, InternalApiKeyFilter.class})
 public class PratikDairyUserApplication {
 
 	public static void main(String[] args) {
